@@ -1,16 +1,17 @@
 import numpy as np
+import scipy.io.wavfile as sci
 
 
-def DFT_loop(signal):
-    n = len(signal)
-    f_signal_arr = np.zeros((n,), np.complex128)
-    for u in range(n):
-        fourier_signal = 0
-        for x in range(n):
-            euler_exp = np.exp(-2 * np.pi * u * x * 1j * (1 / n))
-            fourier_signal += signal[x] * euler_exp
-        f_signal_arr[u] = fourier_signal
-    return f_signal_arr.astype(np.complex128)
+# def DFT_loop(signal):
+#     n = len(signal)
+#     f_signal_arr = np.zeros((n,), np.complex128)
+#     for u in range(n):
+#         fourier_signal = 0
+#         for x in range(n):
+#             euler_exp = np.exp(-2 * np.pi * u * x * 1j * (1 / n))
+#             fourier_signal += signal[x] * euler_exp
+#         f_signal_arr[u] = fourier_signal
+#     return f_signal_arr.astype(np.complex128)
 
 
 def DFT(signal):
@@ -44,6 +45,12 @@ def IDFT2(fourier_image):
     for col_idx in range(fourier_image.shape[1]):
         im[:, col_idx] = IDFT(fourier_image[:, col_idx])
     for row_idx in range(fourier_image.shape[0]):
-        im[row_idx,:] = IDFT(im[row_idx,:])
+        im[row_idx, :] = IDFT(im[row_idx, :])
     return im.astype(np.float64)
+
+
+def change_rate(filename, ratio):
+    rate, data = sci.read(filename)
+    sci.write("change_rate.wav", int(rate * ratio), data)
+
 
