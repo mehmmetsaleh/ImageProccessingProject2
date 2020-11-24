@@ -18,10 +18,15 @@ def DFT(signal):
     omega = np.exp(-2 * np.pi * 1j * (1 / n))
     arr = np.arange(n)
     dft_mat = np.vander(omega ** arr, increasing=True)
-    return (1 / n) * np.dot(dft_mat, signal)
+    return np.dot(dft_mat, signal)
 
 
 def IDFT(fourier_signal):
-    pass
+    n = len(fourier_signal)
+    omega = np.exp(2 * np.pi * 1j * (1 / n))
+    arr = np.arange(n)
+    idft_mat = np.vander(omega ** arr,increasing=True)
+    return (1/n) * np.dot(idft_mat,fourier_signal)
+
 
 
