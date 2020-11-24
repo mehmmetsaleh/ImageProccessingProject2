@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def DFT(signal):
+def DFT_loop(signal):
     n = len(signal)
     f_signal_arr = np.zeros((n,), np.complex128)
     for u in range(n):
@@ -13,5 +13,15 @@ def DFT(signal):
     return f_signal_arr.astype(np.complex128)
 
 
+def DFT(signal):
+    n = len(signal)
+    omega = np.exp(-2 * np.pi * 1j * (1 / n))
+    arr = np.arange(n)
+    dft_mat = np.vander(omega ** arr, increasing=True)
+    return (1 / n) * np.dot(dft_mat, signal)
+
+
 def IDFT(fourier_signal):
     pass
+
+
