@@ -65,11 +65,12 @@ def change_samples(filename, ratio):
     rate, data = sci.read(filename)
     new_data = resize(data, ratio)
     sci.write("change_samples.wav", rate, new_data)
+    return new_data
 
 
 def resize(data, ratio):
-    ori_samples = DFT(data)
-    shifted_ori_samples = np.fft.fftshift(ori_samples)
+    f_on_ori_samples = DFT(data)
+    shifted_ori_samples = np.fft.fftshift(f_on_ori_samples)
     n_samples = len(shifted_ori_samples)
     n_new_samples = int(n_samples / ratio)
     if ratio > 1:
