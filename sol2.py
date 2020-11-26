@@ -65,7 +65,7 @@ def change_samples(filename, ratio):
     rate, data = sci.read(filename)
     new_data = resize(data, ratio)
     sci.write("change_samples.wav", rate, new_data)
-    return new_data
+    return new_data.astype(np.float64)
 
 
 def resize(data, ratio):
