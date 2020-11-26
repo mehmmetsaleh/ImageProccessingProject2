@@ -71,27 +71,30 @@ def resize(data, ratio):
     ori_samples = DFT(data)
     shifted_ori_samples = np.fft.fftshift(ori_samples)
     n_samples = len(shifted_ori_samples)
+    n_new_samples = int(n_samples / ratio)
     if ratio > 1:
-        n_new_samples = int(n_samples / ratio)
-        print(n_new_samples)
         diff = n_samples - n_new_samples
-        resized_arr = np.zeros(ori_samples.shape)
         if diff % 2 == 0:
-            resized_arr[diff // 2: len(resized_arr) - diff // 2 + 1] = shifted_ori_samples[
-                diff // 2: n_samples - diff // 2 + 1]
+            new_arr = shifted_ori_samples[diff // 2: n_samples - diff // 2 + 1]
         else:
-            resized_arr[diff // 2: len(resized_arr) - diff // 2] = shifted_ori_samples[
-                diff // 2: n_samples - diff // 2]
-        return IDFT(np.fft.ifftshift(resized_arr)).astype(data.dtype)
+            new_arr = shifted_ori_samples[diff // 2 + 1: n_samples - diff // 2 + 1]
+        return IDFT(np.fft.ifftshift(new_arr)).astype(data.dtype)
 
     elif ratio < 1:
-        
+        diff = n_new_samples - n_samples
+        new_arr = shifted_ori_samples
+        if diff % 2 == 0:
+            new_arr = np.pad(new_arr, (diff // 2, diff // 2), 'constant')
+        else:
+            new_arr = np.pad(new_arr, (diff // 2, diff // 2 + 1), 'constant')
+        return IDFT(np.fft.ifftshift(new_arr)).astype(data.dtype)
 
+    else:
+        return data
 
 
 if __name__ == '__main__':
-    change_samples("aria_4kHz.wav",2)
-
+    change_samples("aria_4kHz.wav", 1.7)
 
     # img = color.rgb2gray(io.imread('monkey.jpg'))
     # imgplot = plt.imshow(img,cmap="gray")
