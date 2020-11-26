@@ -1,5 +1,12 @@
 import numpy as np
 import scipy.io.wavfile as sci
+from skimage import color
+from skimage import io
+
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+
+from scipy import fftpack, ndimage
 
 
 # def DFT_loop(signal):
@@ -34,9 +41,9 @@ def IDFT(fourier_signal):
 def DFT2(image):
     f_im = np.zeros(image.shape, dtype=np.complex128)
     for col_idx in range(image.shape[1]):
-        f_im[:, col_idx] = DFT(image[col_idx])
+        f_im[:, col_idx] = DFT(image[:, col_idx])
     for row_idx in range(image.shape[0]):
-        f_im[row_idx, :] = DFT(f_im[row_idx:, ])
+        f_im[row_idx, :] = DFT(f_im[row_idx, :])
     return f_im.astype(np.complex128)
 
 
@@ -54,3 +61,43 @@ def change_rate(filename, ratio):
     sci.write("change_rate.wav", int(rate * ratio), data)
 
 
+def change_samples(filename, ratio):
+    rate, data = sci.read(filename)
+    new_data = resize(data, ratio)
+    sci.write("change_samples.wav", rate, new_data)
+
+
+def resize(data, ratio):
+    ori_samples = DFT(data)
+    shifted_ori_samples = np.fft.fftshift(ori_samples)
+    n_samples = len(shifted_ori_samples)
+    if ratio > 1:
+        n_new_samples = int(n_samples / ratio)
+        print(n_new_samples)
+        diff = n_samples - n_new_samples
+        resized_arr = np.zeros(ori_samples.shape)
+        if diff % 2 == 0:
+            resized_arr[diff // 2: len(resized_arr) - diff // 2 + 1] = shifted_ori_samples[
+                diff // 2: n_samples - diff // 2 + 1]
+        else:
+            resized_arr[diff // 2: len(resized_arr) - diff // 2] = shifted_ori_samples[
+                diff // 2: n_samples - diff // 2]
+        return IDFT(np.fft.ifftshift(resized_arr)).astype(data.dtype)
+
+    elif ratio < 1:
+        
+
+
+
+if __name__ == '__main__':
+    change_samples("aria_4kHz.wav",2)
+
+
+    # img = color.rgb2gray(io.imread('monkey.jpg'))
+    # imgplot = plt.imshow(img,cmap="gray")
+    # plt.show()
+    # img2 = DFT2(img)
+    # fft2 = fftpack.fft2(img)
+    # imgplot = plt.imshow(np.log10(abs(img2)))
+    # plt.magnitude_spectrum(img2.flatten())
+    # plt.show()
