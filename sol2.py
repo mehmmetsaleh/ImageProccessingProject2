@@ -1,5 +1,8 @@
 import numpy as np
 import scipy.io.wavfile as sci
+import scipy.signal
+from ex2_helper import *
+
 from skimage import color
 from skimage import io
 
@@ -76,9 +79,9 @@ def resize(data, ratio):
     if ratio > 1:
         diff = n_samples - n_new_samples
         if diff % 2 == 0:
-            new_arr = shifted_ori_samples[diff // 2: n_samples - diff // 2 + 1]
+            new_arr = shifted_ori_samples[diff // 2: n_samples - diff // 2]
         else:
-            new_arr = shifted_ori_samples[diff // 2 + 1: n_samples - diff // 2 + 1]
+            new_arr = shifted_ori_samples[diff // 2 + 1: n_samples - diff // 2]
         return IDFT(np.fft.ifftshift(new_arr)).astype(data.dtype)
 
     elif ratio < 1:
@@ -94,9 +97,27 @@ def resize(data, ratio):
         return data
 
 
-if __name__ == '__main__':
-    change_samples("aria_4kHz.wav", 1.7)
+def resize_spectrogram(data, ratio):
+    spec = stft(data)
+    new_array = np.zeros((spec.shape[0], int(spec.shape[1]/ratio)))
+    for i in range(spec.shape[0]):
+        new_array[i, :] = resize(spec[i, :], ratio)
+    new_arr = istft(new_array)
+    return new_arr.astype(data.dtype)
 
+def resize_vocoder(data, ratio):
+    spec = stft(data)
+    corrected_spec = phase_vocoder(spec, ratio)
+    new_arr = istft(corrected_spec)
+    return new_arr.astype(data.dtype)
+
+
+
+if __name__ == '__main__':
+    # change_samples("aria_4kHz.wav", 1.7)
+    rate, data = sci.read("aria_4kHz.wav")
+    new_data = resize_vocoder(data, 0.26)
+    sci.write("newfile2.wav",rate,new_data)
     # img = color.rgb2gray(io.imread('monkey.jpg'))
     # imgplot = plt.imshow(img,cmap="gray")
     # plt.show()
