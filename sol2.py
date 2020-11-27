@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.io.wavfile as sci
-import scipy.signal
+from scipy import signal
 from ex2_helper import *
 
 from skimage import color
@@ -99,11 +99,12 @@ def resize(data, ratio):
 
 def resize_spectrogram(data, ratio):
     spec = stft(data)
-    new_array = np.zeros((spec.shape[0], int(spec.shape[1]/ratio)))
+    new_array = np.zeros((spec.shape[0], int(spec.shape[1] / ratio)))
     for i in range(spec.shape[0]):
         new_array[i, :] = resize(spec[i, :], ratio)
     new_arr = istft(new_array)
     return new_arr.astype(data.dtype)
+
 
 def resize_vocoder(data, ratio):
     spec = stft(data)
@@ -112,12 +113,20 @@ def resize_vocoder(data, ratio):
     return new_arr.astype(data.dtype)
 
 
+def conv_der(im):
+    x_kernel = np.array([0.5, 0, -0.5])
+    y_kernel = np.reshape(x_kernel, (3, 1))
+    dx = signal.convolve2d(im, x_kernel, 'same')
+    dy = signal.convolve2d(im, y_kernel, 'same')
+    magnitude = np.sqrt(np.abs(dx) ** 2 + np.abs(dy) ** 2)
+    return magnitude
+
 
 if __name__ == '__main__':
     # change_samples("aria_4kHz.wav", 1.7)
     rate, data = sci.read("aria_4kHz.wav")
     new_data = resize_vocoder(data, 0.26)
-    sci.write("newfile2.wav",rate,new_data)
+    sci.write("newfile2.wav", rate, new_data)
     # img = color.rgb2gray(io.imread('monkey.jpg'))
     # imgplot = plt.imshow(img,cmap="gray")
     # plt.show()
@@ -126,3 +135,4 @@ if __name__ == '__main__':
     # imgplot = plt.imshow(np.log10(abs(img2)))
     # plt.magnitude_spectrum(img2.flatten())
     # plt.show()
+    # conv_der()
