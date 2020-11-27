@@ -1,27 +1,9 @@
 import numpy as np
 import scipy.io.wavfile as sci
-from scipy import signal
-from ex2_helper import *
-
-from skimage import color
+import skimage.color as sk
 from skimage import io
-
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-
-from scipy import fftpack, ndimage
-
-
-# def DFT_loop(signal):
-#     n = len(signal)
-#     f_signal_arr = np.zeros((n,), np.complex128)
-#     for u in range(n):
-#         fourier_signal = 0
-#         for x in range(n):
-#             euler_exp = np.exp(-2 * np.pi * u * x * 1j * (1 / n))
-#             fourier_signal += signal[x] * euler_exp
-#         f_signal_arr[u] = fourier_signal
-#     return f_signal_arr.astype(np.complex128)
+from scipy import signal
+from scipy.ndimage.interpolation import map_coordinates
 
 
 def DFT(signal):
@@ -51,12 +33,12 @@ def DFT2(image):
 
 
 def IDFT2(fourier_image):
-    im = np.zeros(fourier_image.shape, dtype=np.float64)
+    im = np.zeros(fourier_image.shape, dtype=np.complex128)
     for col_idx in range(fourier_image.shape[1]):
         im[:, col_idx] = IDFT(fourier_image[:, col_idx])
     for row_idx in range(fourier_image.shape[0]):
         im[row_idx, :] = IDFT(im[row_idx, :])
-    return im.astype(np.float64)
+    return im.astype(np.complex128)
 
 
 def change_rate(filename, ratio):
@@ -114,7 +96,7 @@ def resize_vocoder(data, ratio):
 
 
 def conv_der(im):
-    x_kernel = np.array([0.5, 0, -0.5])
+    x_kernel = np.array([[0.5, 0, -0.5]])
     y_kernel = np.reshape(x_kernel, (3, 1))
     dx = signal.convolve2d(im, x_kernel, 'same')
     dy = signal.convolve2d(im, y_kernel, 'same')
@@ -122,17 +104,101 @@ def conv_der(im):
     return magnitude
 
 
-if __name__ == '__main__':
-    # change_samples("aria_4kHz.wav", 1.7)
-    rate, data = sci.read("aria_4kHz.wav")
-    new_data = resize_vocoder(data, 0.26)
-    sci.write("newfile2.wav", rate, new_data)
-    # img = color.rgb2gray(io.imread('monkey.jpg'))
-    # imgplot = plt.imshow(img,cmap="gray")
-    # plt.show()
-    # img2 = DFT2(img)
-    # fft2 = fftpack.fft2(img)
-    # imgplot = plt.imshow(np.log10(abs(img2)))
-    # plt.magnitude_spectrum(img2.flatten())
-    # plt.show()
-    # conv_der()
+def fourier_der(im):
+    f1 = DFT2(im)
+    f1 = np.fft.fftshift(f1)
+
+    # derivative in X direction
+    u_arr_x = np.array([i - f1.shape[0] // 2 for i in range(f1.shape[0])])
+    v_mask = np.empty(f1.shape)
+    for col in range(v_mask.shape[1]):
+        v_mask[:, col] = u_arr_x
+    v_f1 = np.multiply(f1, v_mask)
+    x_der = ((2 * np.pi * 1j) / v_f1.shape[0]) * IDFT2(v_f1)
+
+    # derivative in Y direction
+    u_arr_y = np.array([i - f1.shape[1] // 2 for i in range(f1.shape[1])])
+    h_mask = np.empty(f1.shape)
+    for row in range(h_mask.shape[0]):
+        h_mask[row, :] = u_arr_y
+    h_f1 = np.multiply(f1, h_mask)
+    y_der = ((2 * np.pi * 1j) / h_f1.shape[1]) * IDFT2(h_f1)
+
+    magnitude = np.sqrt(np.abs(x_der) ** 2 + np.abs(y_der) ** 2)
+    return magnitude.astype(np.float64)
+
+
+def read_image(filename, representation):
+    im = io.imread(filename)
+    im_float = im.astype(np.float64)
+    im_float /= 255
+
+    if representation == 1:
+        im_g = sk.rgb2gray(im_float)
+        return im_g
+    elif representation == 2:
+        return im_float
+
+
+def stft(y, win_length=640, hop_length=160):
+    fft_window = signal.windows.hann(win_length, False)
+
+    # Window the time series.
+    n_frames = 1 + (len(y) - win_length) // hop_length
+    frames = [y[s:s + win_length] for s in np.arange(n_frames) * hop_length]
+
+    stft_matrix = np.fft.fft(fft_window * frames, axis=1)
+    return stft_matrix.T
+
+
+def istft(stft_matrix, win_length=640, hop_length=160):
+    n_frames = stft_matrix.shape[1]
+    y_rec = np.zeros(win_length + hop_length * (n_frames - 1), dtype=np.float)
+    ifft_window_sum = np.zeros_like(y_rec)
+
+    ifft_window = signal.windows.hann(win_length, False)[:, np.newaxis]
+    win_sq = ifft_window.squeeze() ** 2
+
+    # invert the block and apply the window function
+    ytmp = ifft_window * np.fft.ifft(stft_matrix, axis=0).real
+
+    for frame in range(n_frames):
+        frame_start = frame * hop_length
+        frame_end = frame_start + win_length
+        y_rec[frame_start: frame_end] += ytmp[:, frame]
+        ifft_window_sum[frame_start: frame_end] += win_sq
+
+    # Normalize by sum of squared window
+    y_rec[ifft_window_sum > 0] /= ifft_window_sum[ifft_window_sum > 0]
+    return y_rec
+
+
+def phase_vocoder(spec, ratio):
+    num_timesteps = int(spec.shape[1] / ratio)
+    time_steps = np.arange(num_timesteps) * ratio
+
+    # interpolate magnitude
+    yy = np.meshgrid(np.arange(time_steps.size), np.arange(spec.shape[0]))[1]
+    xx = np.zeros_like(yy)
+    coordiantes = [yy, time_steps + xx]
+    warped_spec = map_coordinates(np.abs(spec), coordiantes, mode='reflect', order=1).astype(np.complex)
+
+    # phase vocoder
+    # Phase accumulator; initialize to the first sample
+    spec_angle = np.pad(np.angle(spec), [(0, 0), (0, 1)], mode='constant')
+    phase_acc = spec_angle[:, 0]
+
+    for (t, step) in enumerate(np.floor(time_steps).astype(np.int)):
+        # Store to output array
+        warped_spec[:, t] *= np.exp(1j * phase_acc)
+
+        # Compute phase advance
+        dphase = (spec_angle[:, step + 1] - spec_angle[:, step])
+
+        # Wrap to -pi:pi range
+        dphase = np.mod(dphase - np.pi, 2 * np.pi) - np.pi
+
+        # Accumulate phase
+        phase_acc += dphase
+
+    return warped_spec
