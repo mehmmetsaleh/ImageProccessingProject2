@@ -1,0 +1,2 @@
+the sound after applying resize_spectrogram() isn't as clear as it's after
+applying resize_vocoder(). 

@@ -1,0 +1,3 @@
+on change_rate() all information are kept but the rate is accelorated 
+on the other hand, in change_samples we cut higher frequencies from the audio 
+file.

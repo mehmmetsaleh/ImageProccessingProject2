@@ -1,0 +1,2 @@
+These are two different methods to derive images and they are an approximation
+of the actual derivative, hence the differences.
